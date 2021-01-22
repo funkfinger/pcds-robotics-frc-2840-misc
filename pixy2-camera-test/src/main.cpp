@@ -1,45 +1,108 @@
 #include <Arduino.h>
+#include <Servo.h>
+#include <PID_v1.h>
 #include <Pixy2.h>
-#include <Pixy2CCC.h>
-#include <FastLED.h>
 
-#define LED_PIN 7
-#define COLOR_ORDER GRB
-#define CHIPSET WS2811
-#define NUM_LEDS 8
+#define MIN_SERVO_X 50
+#define MAX_SERVO_X 160
 
-#define BRIGHTNESS 80
-#define FRAMES_PER_SECOND 60
+#define MIN_SERVO_Y 110
+#define MAX_SERVO_Y 170
 
-CRGB leds[NUM_LEDS];
+#define FRAME_WIDTH 316
+#define FRAME_HEIGHT 208
+
+#define Y_SERVO_PIN 8
+#define X_SERVO_PIN 9
 
 Pixy2 pixy;
 
+Servo servoX;
+Servo servoY;
+
+//Define Variables we'll be connecting to
+double pidSetpoint, pidInput, pidOutput;
+
+//Specify the links and initial tuning parameters
+PID myPID(&pidInput, &pidOutput, &pidSetpoint, 2, 5, 1, P_ON_M, DIRECT); //P_ON_M specifies that Proportional on Measurement be used
+// PID myPID(&pidInput, &pidOutput, &pidSetpoint, 2, 5, 1, DIRECT);
+
+uint16_t xPos = 128;
+uint16_t yPos = 128;
+
+void setServo(Servo s, int pos, int min, int max, int maxFrame)
+{
+  s.write(map(pos, 1, maxFrame, min, max));
+}
+
+void setX(int pos)
+{
+  xPos = pos;
+  setServo(servoX, pos, MIN_SERVO_X, MAX_SERVO_X, FRAME_WIDTH);
+}
+
+void setY(int pos)
+{
+  setServo(servoY, pos, MIN_SERVO_Y, MAX_SERVO_Y, FRAME_HEIGHT);
+}
+
+uint16_t fWidth;
+uint16_t fHeight;
+
 void setup()
 {
-  delay(1000); // sanity delay
-  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(BRIGHTNESS);
   Serial.begin(115200);
   Serial.print("Starting...\n");
 
+  servoX.attach(X_SERVO_PIN);
+  servoY.attach(Y_SERVO_PIN);
+
+  // We need to initialize the pixy object
   pixy.init();
+  fWidth = pixy.frameWidth;
+  fHeight = pixy.frameHeight;
+
+  // Use color connected components program for the pan tilt to track
+  pixy.changeProg("color_connected_components");
+
+  //turn the PID on
+  pidSetpoint = 0;
+  myPID.SetMode(AUTOMATIC);
+  myPID.SetOutputLimits(-158, 158);
 }
 
+int panOffset;
+
+int moveDistance = 10;
+
+unsigned long currentTime, previousTime;
 void loop()
 {
+  currentTime = millis();
+  elapsedTime = currentTime - previousTime;
   pixy.ccc.getBlocks();
-  char buf[32];
-  uint8_t xDirection;
 
   if (pixy.ccc.numBlocks)
   {
-    xDirection = map(pixy.ccc.blocks[0].m_x, 0, 315, 0, NUM_LEDS);
-    sprintf(buf, "X >>> %d:\n", xDirection);
-    Serial.println(buf);
-    fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
-    leds[xDirection] = CHSV(255, 255, BRIGHTNESS);
-    FastLED.show();
-    FastLED.delay(1000 / FRAMES_PER_SECOND);
+
+    int x = (158 - pixy.ccc.blocks[0].m_x);
+    // Serial.println(x);
+
+    int center = FRAME_WIDTH / 2;
+
+    pidInput = x;
+    myPID.Compute();
+    Serial.println(pidOutput);
+
+    moveDistance = pidOutput;
+    if (moveDistance > 10)
+    {
+      xPos = x < center ? xPos + moveDistance : xPos - moveDistance;
+      setX(xPos);
+    }
+  }
+  else // no object detected, go into reset state
+  {
+    setX(50);
   }
 }
