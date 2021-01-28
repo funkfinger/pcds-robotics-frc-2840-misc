@@ -97,7 +97,7 @@ void loop()
     moveDistance = pidOutput;
     if (moveDistance > 10)
     {
-      xPos = x < center ? xPos + moveDistance : xPos - moveDistance;
+      xPos = x < 0 ? xPos + moveDistance : xPos - moveDistance;
       setX(xPos);
     }
   }
