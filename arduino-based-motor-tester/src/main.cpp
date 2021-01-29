@@ -42,6 +42,9 @@ void setup()
 
   motorA.attach(A1);
   motorB.attach(A2);
+
+  motorA.write(92);
+  motorB.write(92);
 }
 
 unsigned static long debounceInterval = 80;
@@ -88,42 +91,57 @@ uint8_t checkButton()
 
 uint8_t activeSide = 1;
 
+void clearMotorValues()
+{
+  lcd.setCursor(10, 1);
+  lcd.print("    ");
+  lcd.setCursor(2, 1);
+  lcd.print("    ");
+}
+
+void writeMotorValues()
+{
+  clearMotorValues();
+  if (motorAValue < 0)
+  {
+    lcd.setCursor(2, 1);
+  }
+  else
+  {
+    lcd.setCursor(3, 1);
+  }
+  lcd.print(motorAValue);
+  if (motorBValue < 0)
+  {
+    lcd.setCursor(10, 1);
+  }
+  else
+  {
+    lcd.setCursor(11, 1);
+  }
+  lcd.print(motorBValue);
+  // reset the blink position...
+  if (activeSide == 1)
+    lcd.setCursor(0, 1);
+  if (activeSide == 2)
+    lcd.setCursor(8, 1);
+
+  // motorA.write(map(motorAValue, -100, 100, 0, 179));
+  motorA.write(motorAValue + 92);
+  motorB.write(motorBValue + 92);
+}
+
 void doUp()
 {
   if (activeSide == 1)
   {
-    motorAValue = motorAValue > 100 ? 100 : motorAValue + 1;
-    lcd.setCursor(2, 1);
-    lcd.print("    ");
-    if (motorAValue < 0)
-    {
-      lcd.setCursor(2, 1);
-    }
-    else
-    {
-      lcd.setCursor(3, 1);
-    }
-
-    // lcd.setCursor(3, 1);
-    lcd.print(motorAValue);
+    motorAValue = motorAValue > 90 ? 90 : motorAValue + 1;
   }
   if (activeSide == 2)
   {
-    motorBValue = motorBValue > 100 ? 100 : motorBValue + 1;
-    lcd.setCursor(10, 1);
-    lcd.print("    ");
-    if (motorBValue < 0)
-    {
-      lcd.setCursor(10, 1);
-    }
-    else
-    {
-      lcd.setCursor(11, 1);
-    }
-
-    // lcd.setCursor(11, 1);
-    lcd.print(motorBValue);
+    motorBValue = motorBValue > 90 ? 90 : motorBValue + 1;
   }
+  writeMotorValues();
   Serial.println("up");
 }
 
@@ -139,32 +157,13 @@ void doDown()
 {
   if (activeSide == 1)
   {
-    motorAValue = motorAValue < -100 ? -100 : motorAValue - 1;
-    if (motorAValue < 0)
-    {
-      lcd.setCursor(2, 1);
-    }
-    else
-    {
-      lcd.setCursor(3, 1);
-    }
-    // lcd.setCursor(3, 1);
-    lcd.print(motorAValue);
+    motorAValue = motorAValue < -90 ? -90 : motorAValue - 1;
   }
   if (activeSide == 2)
   {
-    motorBValue = motorBValue < -100 ? -100 : motorBValue - 1;
-    if (motorBValue < 0)
-    {
-      lcd.setCursor(10, 1);
-    }
-    else
-    {
-      lcd.setCursor(11, 1);
-    }
-    // lcd.setCursor(11, 1);
-    lcd.print(motorBValue);
+    motorBValue = motorBValue < -90 ? -90 : motorBValue - 1;
   }
+  writeMotorValues();
   Serial.println("down");
 }
 
@@ -212,8 +211,4 @@ void loop()
     doSelect();
     break;
   }
-  if (activeSide == 1)
-    lcd.setCursor(0, 1);
-  if (activeSide == 2)
-    lcd.setCursor(8, 1);
 }
